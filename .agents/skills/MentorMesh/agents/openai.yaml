@@ -1,0 +1,6 @@
+interface:
+  display_name: "MentorMesh"
+  short_description: "Repo-specific patterns and workflows for MentorMesh"
+  default_prompt: "Use the MentorMesh repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
