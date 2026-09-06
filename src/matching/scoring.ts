@@ -21,7 +21,8 @@ const normalize = (values: string[]) => new Set(values.map((value) => value.trim
 
 export function scoreMentor(mentor: MentorProfile, learner: LearnerRequest): MatchScore {
   const mentorSkills = normalize(mentor.skills);
-  const skillMatches = learner.skills.filter((skill) => mentorSkills.has(skill.trim().toLowerCase())).length;
+  const requestedSkills = normalize(learner.skills);
+  const skillMatches = [...requestedSkills].filter((skill) => mentorSkills.has(skill)).length;
   const mentorLanguages = normalize(mentor.languages);
   const languageMatch = learner.languages.some((language) => mentorLanguages.has(language.trim().toLowerCase()));
   const capacityMatch = mentor.availableMinutesPerWeek >= learner.requestedMinutesPerWeek;
