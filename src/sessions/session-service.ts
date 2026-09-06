@@ -25,7 +25,11 @@ export class SessionService {
     private readonly profiles: InMemoryProfileRepository,
     private readonly idFactory: () => string = randomUUID,
     private readonly clock: () => Date = () => new Date(),
-  ) {}
+    initialSessions: MentoringSession[] = [],
+    private readonly onChange: () => void = () => undefined,
+  ) {
+    for (const session of initialSessions) this.sessions.set(session.id, structuredClone(session));
+  }
 
   schedule(input: ScheduleSession): MentoringSession {
     const mentor = this.profiles.get(input.mentorId);
@@ -62,6 +66,7 @@ export class SessionService {
       createdAt: this.clock().toISOString(),
     };
     this.sessions.set(session.id, session);
+    this.onChange();
     return structuredClone(session);
   }
 
@@ -70,6 +75,10 @@ export class SessionService {
       .filter((session) => !profileId || session.mentorId === profileId || session.learnerId === profileId)
       .sort((left, right) => left.startsAt.localeCompare(right.startsAt))
       .map((session) => structuredClone(session));
+  }
+
+  snapshot(): MentoringSession[] {
+    return this.list();
   }
 
   cancel(id: string): MentoringSession {
@@ -93,6 +102,7 @@ export class SessionService {
     if (current.status !== "scheduled") throw new SessionRuleError(`cannot change a ${current.status} session`);
     const session = { ...current, status };
     this.sessions.set(id, session);
+    this.onChange();
     return structuredClone(session);
   }
 }
