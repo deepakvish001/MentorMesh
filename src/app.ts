@@ -2,12 +2,14 @@ import {
   ArgumentsHost, Body, Catch, Controller, ExceptionFilter, Get, HttpException, HttpStatus,
   Module, Param, Post, Put, Query,
 } from "@nestjs/common";
+import { APP_GUARD, Reflector } from "@nestjs/core";
 import { GoalNotFoundError, GoalRuleError, GoalService } from "./goals/goal-service.js";
 import { MatchRequest, MatchRequestError, MatchingService } from "./matching/matching-service.js";
 import { JsonStateStore } from "./persistence/json-state-store.js";
 import { ProfileInput, ProfileRole, ProfileValidationError } from "./profiles/profile.js";
 import { InMemoryProfileRepository, ProfileNotFoundError } from "./profiles/profile-repository.js";
 import { ScheduleSession, SessionNotFoundError, SessionRuleError, SessionService } from "./sessions/session-service.js";
+import { ApiKeyGuard, parseApiKeys, Public, Roles } from "./security/api-key.guard.js";
 
 @Controller("profiles")
 export class ProfilesController {
@@ -23,6 +25,7 @@ export class ProfilesController {
   get(@Param("id") id: string) { return this.profiles.get(id); }
 
   @Put(":id")
+  @Roles("coordinator")
   update(@Param("id") id: string, @Body() input: ProfileInput) { return this.profiles.update(id, input); }
 }
 
@@ -64,6 +67,7 @@ export class GoalsController {
 @Controller()
 export class HealthController {
   @Get("healthz")
+  @Public()
   health() { return { status: "ok" }; }
 }
 
@@ -96,6 +100,11 @@ goals = new GoalService(profiles, undefined, undefined, initialState.goals, pers
     { provide: MatchingService, useFactory: () => new MatchingService(profiles) },
     { provide: SessionService, useValue: sessions },
     { provide: GoalService, useValue: goals },
+    {
+      provide: APP_GUARD,
+      inject: [Reflector],
+      useFactory: (reflector: Reflector) => new ApiKeyGuard(reflector, parseApiKeys(process.env.API_KEYS)),
+    },
   ],
 })
 export class AppModule {}
