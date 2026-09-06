@@ -4,6 +4,7 @@ import {
 } from "@nestjs/common";
 import { GoalNotFoundError, GoalRuleError, GoalService } from "./goals/goal-service.js";
 import { MatchRequest, MatchRequestError, MatchingService } from "./matching/matching-service.js";
+import { JsonStateStore } from "./persistence/json-state-store.js";
 import { ProfileInput, ProfileRole, ProfileValidationError } from "./profiles/profile.js";
 import { InMemoryProfileRepository, ProfileNotFoundError } from "./profiles/profile-repository.js";
 import { ScheduleSession, SessionNotFoundError, SessionRuleError, SessionService } from "./sessions/session-service.js";
@@ -79,15 +80,22 @@ export class DomainExceptionFilter implements ExceptionFilter {
   }
 }
 
-const profiles = new InMemoryProfileRepository();
+const stateStore = new JsonStateStore(process.env.DATA_FILE ?? "./data/mentormesh.json");
+const initialState = stateStore.load();
+let sessions: SessionService;
+let goals: GoalService;
+const persist = () => stateStore.save({ profiles: profiles.snapshot(), sessions: sessions?.snapshot() ?? initialState.sessions, goals: goals?.snapshot() ?? initialState.goals });
+const profiles = new InMemoryProfileRepository(undefined, undefined, initialState.profiles, persist);
+sessions = new SessionService(profiles, undefined, undefined, initialState.sessions, persist);
+goals = new GoalService(profiles, undefined, undefined, initialState.goals, persist);
 
 @Module({
   controllers: [HealthController, ProfilesController, MatchesController, SessionsController, GoalsController],
   providers: [
     { provide: InMemoryProfileRepository, useValue: profiles },
     { provide: MatchingService, useFactory: () => new MatchingService(profiles) },
-    { provide: SessionService, useFactory: () => new SessionService(profiles) },
-    { provide: GoalService, useFactory: () => new GoalService(profiles) },
+    { provide: SessionService, useValue: sessions },
+    { provide: GoalService, useValue: goals },
   ],
 })
 export class AppModule {}

@@ -9,13 +9,18 @@ export class InMemoryProfileRepository {
   constructor(
     private readonly idFactory: () => string = randomUUID,
     private readonly clock: () => Date = () => new Date(),
-  ) {}
+    initialProfiles: Profile[] = [],
+    private readonly onChange: () => void = () => undefined,
+  ) {
+    for (const profile of initialProfiles) this.profiles.set(profile.id, structuredClone(profile));
+  }
 
   create(input: ProfileInput): Profile {
     const value = validateProfile(input);
     const now = this.clock().toISOString();
     const profile: Profile = { ...value, id: this.idFactory(), createdAt: now, updatedAt: now };
     this.profiles.set(profile.id, profile);
+    this.onChange();
     return structuredClone(profile);
   }
 
@@ -36,6 +41,11 @@ export class InMemoryProfileRepository {
     const value = validateProfile(input);
     const profile: Profile = { ...current, ...value, updatedAt: this.clock().toISOString() };
     this.profiles.set(id, profile);
+    this.onChange();
     return structuredClone(profile);
+  }
+
+  snapshot(): Profile[] {
+    return this.list();
   }
 }
